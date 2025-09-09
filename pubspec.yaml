@@ -1,6 +1,6 @@
 name: async_toolkit
 description: A comprehensive Dart package for async programming with cancellation tokens, timeout management, retry mechanisms, parallel execution, and rate limiting (throttle/debounce).
-version: 1.0.0
+version: 1.0.0+1
 homepage: https://github.com/duymainek/async_toolkit
 repository: https://github.com/duymainek/async_toolkit
 issue_tracker: https://github.com/duymainek/async_toolkit/issues
