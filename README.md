@@ -265,24 +265,40 @@ class ButtonController {
 ### Composite Cancellation - Kết hợp nhiều nguồn hủy
 
 ```dart
-final userCancelToken = CancellationTokenSource();
-final timeoutToken = CancellationTokenSource.withTimeout(Duration(seconds: 30));
-final networkToken = CancellationTokenSource();
+// Tạo các token sources khác nhau
+final userCancelSource = CancellationTokenSource();
+final timeoutSource = CancellationTokenSource.withTimeout(Duration(seconds: 30));
+final networkSource = CancellationTokenSource();
 
-// Tạo token tổng hợp - hủy khi BẤT KỲ token nào bị hủy
+// Tạo composite token - hủy khi BẤT KỲ token nào bị hủy
 final compositeSource = CancellationTokenSource.any([
-  userCancelToken.token,
-  timeoutToken.token,
-  networkToken.token,
+  userCancelSource.token,
+  timeoutSource.token,
+  networkSource.token,
 ]);
+
+// User có thể hủy bằng button
+onCancelButtonPressed() => userCancelSource.cancel();
+
+// Network error có thể trigger cancel
+onNetworkError() => networkSource.cancel();
 
 try {
   final result = await longOperation(compositeSource.token);
+  print('Operation completed: $result');
+} on OperationCanceledException {
+  if (timeoutSource.isCancellationRequested) {
+    print('Operation timed out');
+  } else if (userCancelSource.isCancellationRequested) {
+    print('User cancelled operation');
+  } else if (networkSource.isCancellationRequested) {
+    print('Network error occurred');
+  }
 } finally {
-  // Cleanup tất cả
-  userCancelToken.dispose();
-  timeoutToken.dispose();
-  networkToken.dispose();
+  // Cleanup tất cả resources
+  userCancelSource.dispose();
+  timeoutSource.dispose();
+  networkSource.dispose();
   compositeSource.dispose();
 }
 ```
