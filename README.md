@@ -264,6 +264,18 @@ class ButtonController {
 
 ### Composite Cancellation - Kết hợp nhiều nguồn hủy
 
+**Composite Cancellation cho phép bạn kết hợp nhiều nguồn hủy khác nhau thành một token duy nhất. Khi BẤT KỲ nguồn nào bị hủy, composite token cũng sẽ bị hủy.**
+
+#### 🎯 Tại sao cần Composite Cancellation?
+
+Trong thực tế, một operation có thể bị hủy vì nhiều lý do:
+- **User hủy** (nhấn nút Cancel)
+- **Timeout** (quá thời gian cho phép)  
+- **Network error** (mất kết nối)
+- **App lifecycle** (app bị minimize)
+
+Thay vì phải check từng token riêng biệt, bạn chỉ cần check một composite token duy nhất.
+
 ```dart
 // Tạo các token sources khác nhau
 final userCancelSource = CancellationTokenSource();
@@ -300,6 +312,89 @@ try {
   timeoutSource.dispose();
   networkSource.dispose();
   compositeSource.dispose();
+}
+
+// Ví dụ longOperation - một tác vụ có thể bị hủy
+Future<String> longOperation(CancellationToken token) async {
+  print('🚀 Bắt đầu long operation...');
+  
+  // Bước 1: Kết nối server
+  print('📡 Đang kết nối server...');
+  await Future.delayed(Duration(seconds: 2));
+  token.throwIfCancellationRequested(); // Kiểm tra có bị hủy không
+  
+  // Bước 2: Xác thực
+  print('🔐 Đang xác thực...');
+  await Future.delayed(Duration(seconds: 3));
+  token.throwIfCancellationRequested(); // Kiểm tra lại
+  
+  // Bước 3: Tải dữ liệu
+  print('📥 Đang tải dữ liệu...');
+  await Future.delayed(Duration(seconds: 5));
+  token.throwIfCancellationRequested(); // Kiểm tra lại
+  
+  // Bước 4: Xử lý dữ liệu
+  print('🔄 Đang xử lý...');
+  await Future.delayed(Duration(seconds: 2));
+  token.throwIfCancellationRequested(); // Kiểm tra cuối cùng
+  
+  return 'Dữ liệu đã xử lý thành công!';
+}
+```
+
+#### 💡 Giải thích chi tiết:
+
+**1. Tại sao truyền `compositeSource.token`?**
+```dart
+// compositeSource.token chứa thông tin từ TẤT CẢ các token sources
+final result = await longOperation(compositeSource.token);
+```
+
+**2. Bên trong longOperation, token được xử lý như thế nào?**
+```dart
+Future<String> longOperation(CancellationToken token) async {
+  // Tại mỗi checkpoint quan trọng, check xem có bị hủy không
+  token.throwIfCancellationRequested();
+  
+  // Nếu BẤT KỲ source nào (user, timeout, network) bị hủy
+  // thì token.throwIfCancellationRequested() sẽ ném OperationCanceledException
+}
+```
+
+**3. Flow hoạt động:**
+```
+User nhấn Cancel → userCancelSource.cancel() 
+                ↓
+              compositeSource.token bị cancel
+                ↓  
+              longOperation check token
+                ↓
+              Ném OperationCanceledException
+                ↓
+              Catch block xử lý và cleanup
+```
+
+**4. Ví dụ thực tế với HTTP request:**
+```dart
+Future<Map<String, dynamic>> fetchUserProfile(int userId, CancellationToken token) async {
+  // Step 1: Validate input
+  token.throwIfCancellationRequested();
+  
+  // Step 2: Make HTTP request  
+  final response = await http.get(
+    Uri.parse('https://api.example.com/users/$userId'),
+    headers: {'Authorization': 'Bearer $token'},
+  );
+  token.throwIfCancellationRequested(); // Check sau khi request
+  
+  // Step 3: Parse response
+  if (response.statusCode != 200) {
+    throw HttpException('Failed to fetch user: ${response.statusCode}');
+  }
+  token.throwIfCancellationRequested(); // Check trước khi parse
+  
+  // Step 4: Return parsed data
+  return jsonDecode(response.body);
 }
 ```
 
