@@ -4,218 +4,200 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Stars](https://img.shields.io/github/stars/duymainek/async_toolkit.svg)](https://github.com/duymainek/async_toolkit)
 
-A comprehensive Dart package providing powerful utilities for asynchronous programming, including cancellation tokens, timeout management, retry mechanisms, parallel execution control, and rate limiting (throttle/debounce).
+Một package Dart mạnh mẽ cung cấp các tiện ích cho lập trình bất đồng bộ: timeout, retry, throttle/debounce, parallel execution và cancellation tokens.
 
-## 🚀 Features
-
-### 🔧 Cancellation Tokens
-- **CancellationToken & CancellationTokenSource** - Cooperative cancellation for async operations
-- **Enhanced completion detection** - Clear distinction between cancellation and timeout
-- **Composite tokens** - Coordinate multiple cancellation sources
-- **Resource management** - Proper cleanup and disposal patterns
-
-### ⏱️ Timeout Management
-- **Flexible timeout control** - With fallback values and custom error handling
-- **Cancellation integration** - Seamless integration with cancellation tokens
-- **Simplified implementation** - Leveraging Dart's built-in timeout mechanisms
-
-### 🔄 Retry Mechanisms
-- **Exponential backoff** - With configurable multiplier and jitter
-- **Linear backoff** - Fixed increment delay strategies
-- **Custom backoff** - Define your own delay functions
-- **Cancellation-aware** - Respects cancellation during delays
-
-### ⚡ Parallel Execution
-- **Limited parallelism** - Control concurrent operation count
-- **Multiple result patterns** - Ordered, unordered, or callback-based
-- **Resource efficient** - Optimized memory usage and cleanup
-- **Cancellation support** - Cancel entire parallel operations
-
-### 🚦 Rate Limiting (Throttle & Debounce)
-- **Throttle** - Limit execution frequency with result caching
-- **Debounce** - Delay execution until pause in calls
-- **Global functions** - Convenient one-off usage
-- **Manager classes** - For repeated use with lifecycle management
-- **Error handling** - Proper exception propagation and cleanup
-
-## 📦 Installation
-
-Add this to your `pubspec.yaml`:
+## 📦 Cài đặt
 
 ```yaml
 dependencies:
   async_toolkit: ^1.0.0
 ```
 
-Then run:
-
 ```bash
 dart pub get
 ```
 
-## 🎯 Quick Start
+## 🎯 Các tính năng chính
 
-### Cancellation Tokens
+- **⏱️ Timeout** - Đặt thời gian chờ cho operations
+- **🔄 Retry** - Thử lại khi operation thất bại  
+- **🚦 Throttle/Debounce** - Kiểm soát tần suất thực thi
+- **⚡ Parallel** - Chạy nhiều operations song song với giới hạn
+- **❌ Cancellation** - Hủy operations đang chạy
+
+## 🚀 Sử dụng cơ bản
+
+### 1. Timeout - Đặt thời gian chờ
 
 ```dart
 import 'package:async_toolkit/async_toolkit.dart';
 
-Future<void> main() async {
-  final source = CancellationTokenSource();
-  
-  // Cancel after 5 seconds
-  Timer(Duration(seconds: 5), () => source.cancel());
-  
-  try {
-    await longRunningOperation(source.token);
-  } on OperationCanceledException {
-    print('Operation was cancelled');
-  } finally {
-    source.dispose();
-  }
+// Timeout đơn giản - ném exception nếu quá thời gian
+try {
+  final result = await withTimeout(
+    callSlowAPI(),
+    Duration(seconds: 5),
+  );
+  print('Kết quả: $result');
+} on TimeoutException {
+  print('API call quá lâu!');
 }
 
-Future<String> longRunningOperation(CancellationToken token) async {
-  for (int i = 0; i < 10; i++) {
-    // Check for cancellation
-    token.throwIfCancellationRequested();
-    
-    await Future.delayed(Duration(seconds: 1));
-    print('Step ${i + 1}/10 completed');
-  }
-  return 'Operation completed';
-}
-```
-
-### Enhanced Cancellation Completion
-
-```dart
-// New: Clear completion reason detection
-final reason = await token.whenCancelledOrTimeout(Duration(seconds: 30));
-switch (reason) {
-  case CancellationCompletionReason.cancelled:
-    print('User cancelled the operation');
-    break;
-  case CancellationCompletionReason.timeout:
-    print('Operation timed out');
-    break;
-}
-```
-
-### Timeout Control
-
-```dart
-// Simple timeout
-final result = await withTimeout(
-  slowOperation(),
-  Duration(seconds: 10),
-);
-
-// Timeout with default value
+// Timeout với giá trị mặc định - không ném exception
 final result = await withTimeoutOrDefault(
-  slowOperation(),
-  Duration(seconds: 10),
-  'Default value',
+  callSlowAPI(),
+  Duration(seconds: 5),
+  'Mặc định khi timeout',
 );
+
+// Timeout trả về null thay vì exception
+final result = await withTimeoutOrNull(
+  callSlowAPI(),
+  Duration(seconds: 5),
+);
+if (result == null) {
+  print('Timeout xảy ra');
+}
 ```
 
-### Retry with Exponential Backoff
+### 2. Retry - Thử lại khi thất bại
 
 ```dart
+// Retry đơn giản với exponential backoff
 final result = await withExponentialBackoff(
-  () => unstableApiCall(),
+  () => callUnstableAPI(),
+  maxAttempts: 3,
+  baseDelay: Duration(milliseconds: 100), // 100ms, 200ms, 400ms
+);
+
+// Retry với fixed delay
+final result = await withFixedDelay(
+  () => callUnstableAPI(),
   maxAttempts: 5,
-  baseDelay: Duration(milliseconds: 100),
-  multiplier: 2.0,
-  jitter: true,
+  delay: Duration(seconds: 1), // Mỗi lần retry cách nhau 1 giây
+);
+
+// Retry với linear backoff  
+final result = await withLinearBackoff(
+  () => callUnstableAPI(),
+  maxAttempts: 3,
+  baseDelay: Duration(milliseconds: 100), // 100ms, 200ms, 300ms
 );
 ```
 
-### Parallel Execution
+### 3. Throttle - Giới hạn tần suất thực thi
 
 ```dart
-final futures = List.generate(10, (i) => 
-  Future.delayed(Duration(seconds: 1), () => 'Task $i')
+// Throttle đơn giản - chỉ thực thi 1 lần trong 1 giây
+final result = await throttle(
+  () => expensiveOperation(),
+  Duration(seconds: 1),
 );
 
-// Run max 3 concurrent operations
+// Sử dụng ThrottleManager cho nhiều lần gọi
+final manager = ThrottleManager<String>(Duration(seconds: 1));
+
+// Gọi nhiều lần nhưng chỉ thực thi 1 lần, cache kết quả
+final result1 = await manager.throttle(() => expensiveOperation());
+final result2 = await manager.throttle(() => expensiveOperation()); // Dùng cache
+final result3 = await manager.throttle(() => expensiveOperation()); // Dùng cache
+
+manager.dispose(); // Nhớ dispose khi xong
+```
+
+### 4. Debounce - Trì hoãn thực thi
+
+```dart
+// Debounce đơn giản - chỉ thực thi sau khi ngừng gọi 300ms
+final result = await debounce(
+  () => searchAPI(query),
+  Duration(milliseconds: 300),
+);
+
+// Sử dụng DebounceManager cho search realtime
+final searchManager = DebounceManager<List<String>>(Duration(milliseconds: 300));
+
+void onSearchChanged(String query) async {
+  try {
+    final results = await searchManager.debounce(() => searchAPI(query));
+    updateUI(results);
+  } catch (e) {
+    print('Search error: $e');
+  }
+}
+
+// Dispose khi không dùng nữa
+searchManager.dispose();
+```
+
+### 5. Parallel - Chạy song song với giới hạn
+
+```dart
+// Tạo danh sách các tasks
+final tasks = List.generate(10, (i) => 
+  () => Future.delayed(Duration(seconds: 1), () => 'Task $i')
+);
+
+// Chạy tối đa 3 tasks cùng lúc, kết quả theo thứ tự
 final results = await runLimitedParallel(
-  futures,
+  tasks,
+  maxParallel: 3,
+);
+print(results); // ['Task 0', 'Task 1', ..., 'Task 9']
+
+// Chạy song song, kết quả theo thứ tự hoàn thành
+final results = await runLimitedParallelUnordered(
+  tasks,
   maxParallel: 3,
 );
 ```
 
-### Throttle & Debounce
+### 6. Cancellation - Hủy operations
 
 ```dart
-// Throttle: Execute once per duration, cache results
-final throttleManager = ThrottleManager<String>(Duration(seconds: 1));
-final result = await throttleManager.throttle(() => expensiveOperation());
+// Tạo cancellation source
+final source = CancellationTokenSource();
 
-// Debounce: Execute after pause in calls
-final debounceManager = DebounceManager<String>(Duration(milliseconds: 300));
-final result = await debounceManager.debounce(() => searchOperation());
+// Hủy sau 5 giây
+Timer(Duration(seconds: 5), () => source.cancel());
 
-// Global functions for one-off usage
-final throttledResult = await throttle(operation, Duration(seconds: 1));
-final debouncedResult = await debounce(operation, Duration(milliseconds: 300));
+try {
+  final result = await longRunningTask(source.token);
+  print('Hoàn thành: $result');
+} on OperationCanceledException {
+  print('Đã bị hủy');
+} finally {
+  source.dispose(); // Nhớ dispose
+}
+
+Future<String> longRunningTask(CancellationToken token) async {
+  for (int i = 0; i < 10; i++) {
+    // Kiểm tra có bị hủy không
+    token.throwIfCancellationRequested();
+    
+    await Future.delayed(Duration(seconds: 1));
+    print('Bước ${i + 1}/10');
+  }
+  return 'Xong!';
+}
 ```
 
-## 📚 Advanced Usage
+## 📱 Ví dụ thực tế
 
-### Composite Cancellation Tokens
-
-```dart
-final tokenA = CancellationTokenSource();
-final tokenB = CancellationTokenSource();
-final tokenC = CancellationTokenSource();
-
-// Create composite token that cancels when ANY source cancels
-final compositeSource = CancellationTokenSource.any([
-  tokenA.token,
-  tokenB.token,
-  tokenC.token,
-]);
-
-// Use composite token
-await someOperation(compositeSource.token);
-
-// Cleanup
-tokenA.dispose();
-tokenB.dispose();
-tokenC.dispose();
-compositeSource.dispose();
-```
-
-### Custom Retry Strategies
-
-```dart
-final result = await withRetryConfig(
-  () => apiCall(),
-  RetryConfig(
-    maxAttempts: 5,
-    backoff: (attempt) => Duration(milliseconds: 100 * attempt * attempt), // Quadratic backoff
-    retryIf: (exception) => exception is SocketException, // Only retry network errors
-    jitter: true,
-    maxDelay: Duration(seconds: 30),
-  ),
-);
-```
-
-### Real-world Search Implementation
+### Search với Debounce
 
 ```dart
 class SearchController {
   final _debounceManager = DebounceManager<List<String>>(Duration(milliseconds: 300));
   
-  Future<void> onSearchChanged(String query) async {
+  void onTextChanged(String query) async {
     if (query.isEmpty) return;
     
     try {
-      final results = await _debounceManager.debounce(() => performSearch(query));
-      updateUI(results);
+      final results = await _debounceManager.debounce(() => searchAPI(query));
+      updateSearchResults(results);
     } on OperationCanceledException {
-      // Search was cancelled by newer search
+      // Search bị hủy bởi search mới
     }
   }
   
@@ -223,111 +205,295 @@ class SearchController {
 }
 ```
 
-## 🔧 API Reference
+### API Call với Timeout và Retry
+
+```dart
+Future<Map<String, dynamic>> callAPI(String endpoint) async {
+  return withTimeout(
+    withExponentialBackoff(
+      () => http.get(Uri.parse(endpoint)).then((response) {
+        if (response.statusCode != 200) {
+          throw HttpException('API error: ${response.statusCode}');
+        }
+        return jsonDecode(response.body);
+      }),
+      maxAttempts: 3,
+      baseDelay: Duration(milliseconds: 100),
+    ),
+    Duration(seconds: 10),
+  );
+}
+```
+
+### Download files song song
+
+```dart
+Future<void> downloadFiles(List<String> urls) async {
+  final downloadTasks = urls.map((url) => () => downloadFile(url)).toList();
+  
+  // Download tối đa 3 files cùng lúc
+  final results = await runLimitedParallel(
+    downloadTasks,
+    maxParallel: 3,
+  );
+  
+  print('Downloaded ${results.length} files');
+}
+```
+
+### Button click với Throttle
+
+```dart
+class ButtonController {
+  final _throttleManager = ThrottleManager<void>(Duration(seconds: 2));
+  
+  void onButtonPressed() async {
+    try {
+      await _throttleManager.throttle(() => submitForm());
+      showSuccess('Form submitted!');
+    } catch (e) {
+      showError('Submit failed: $e');
+    }
+  }
+  
+  void dispose() => _throttleManager.dispose();
+}
+```
+
+## 🔧 Advanced Features
+
+### Composite Cancellation - Kết hợp nhiều nguồn hủy
+
+```dart
+final userCancelToken = CancellationTokenSource();
+final timeoutToken = CancellationTokenSource.withTimeout(Duration(seconds: 30));
+final networkToken = CancellationTokenSource();
+
+// Tạo token tổng hợp - hủy khi BẤT KỲ token nào bị hủy
+final compositeSource = CancellationTokenSource.any([
+  userCancelToken.token,
+  timeoutToken.token,
+  networkToken.token,
+]);
+
+try {
+  final result = await longOperation(compositeSource.token);
+} finally {
+  // Cleanup tất cả
+  userCancelToken.dispose();
+  timeoutToken.dispose();
+  networkToken.dispose();
+  compositeSource.dispose();
+}
+```
+
+### Custom Retry Strategies - Chiến lược retry tùy chỉnh
+
+```dart
+// Retry với config chi tiết
+final result = await withRetryConfig(
+  () => apiCall(),
+  RetryConfig(
+    maxAttempts: 5,
+    backoff: (attempt) => Duration(milliseconds: 100 * attempt * attempt), // Quadratic backoff
+    retryIf: (exception) => exception is SocketException, // Chỉ retry lỗi network
+    jitter: true, // Thêm random để tránh thundering herd
+    maxDelay: Duration(seconds: 30), // Giới hạn delay tối đa
+  ),
+);
+```
+
+### Enhanced Cancellation Detection - Phân biệt cancel và timeout
+
+```dart
+// Phân biệt rõ ràng giữa cancel và timeout
+final reason = await token.whenCancelledOrTimeout(Duration(seconds: 30));
+switch (reason) {
+  case CancellationCompletionReason.cancelled:
+    print('User đã hủy operation');
+    break;
+  case CancellationCompletionReason.timeout:
+    print('Operation bị timeout');
+    break;
+}
+```
+
+### Parallel với Callback - Xử lý kết quả ngay khi có
+
+```dart
+final tasks = List.generate(10, (i) => () => downloadFile('file$i.zip'));
+
+await runLimitedParallelWithCallback(
+  tasks,
+  maxParallel: 3,
+  onResult: (index, result) {
+    print('File $index downloaded: $result');
+    updateProgress(index + 1, tasks.length);
+  },
+  onError: (index, error) {
+    print('File $index failed: $error');
+  },
+);
+```
+
+### Global Manager Control - Quản lý global managers
+
+```dart
+// Sử dụng custom key để tránh xung đột
+final result1 = await throttle(
+  () => operation1(),
+  Duration(seconds: 1),
+  key: 'operation1', // Key tùy chỉnh
+);
+
+final result2 = await throttle(
+  () => operation2(),
+  Duration(seconds: 1),
+  key: 'operation2', // Key khác
+);
+
+// Dọn dẹp tất cả global managers (hữu ích cho testing)
+clearGlobalManagers();
+```
+
+## 📋 API Reference
 
 ### Core Classes
 
-| Class | Description |
-|-------|-------------|
-| `CancellationToken` | Token for cooperative cancellation |
-| `CancellationTokenSource` | Creates and controls cancellation tokens |
-| `ThrottleManager<T>` | Manages throttled operation execution |
-| `DebounceManager<T>` | Manages debounced operation execution |
-| `RetryConfig` | Configuration for retry strategies |
+| Class | Mô tả |
+|-------|-------|
+| `CancellationToken` | Token để hủy operations |
+| `CancellationTokenSource` | Tạo và quản lý cancellation tokens |
+| `ThrottleManager<T>` | Quản lý throttled operations |
+| `DebounceManager<T>` | Quản lý debounced operations |
+| `RetryConfig` | Cấu hình cho retry strategies |
 
 ### Key Functions
 
-| Function | Description |
-|----------|-------------|
-| `withTimeout<T>()` | Execute with timeout |
-| `withRetry<T>()` | Execute with retry logic |
-| `withExponentialBackoff<T>()` | Retry with exponential backoff |
-| `runLimitedParallel<T>()` | Execute with limited parallelism |
+| Function | Mô tả |
+|----------|-------|
+| `withTimeout<T>()` | Thực thi với timeout |
+| `withTimeoutOrNull<T>()` | Timeout trả về null |
+| `withTimeoutOrDefault<T>()` | Timeout với giá trị mặc định |
+| `withExponentialBackoff<T>()` | Retry với exponential backoff |
+| `withLinearBackoff<T>()` | Retry với linear backoff |
+| `withFixedDelay<T>()` | Retry với fixed delay |
+| `runLimitedParallel<T>()` | Parallel với giới hạn (ordered) |
+| `runLimitedParallelUnordered<T>()` | Parallel với giới hạn (unordered) |
 | `throttle<T>()` | Global throttle function |
 | `debounce<T>()` | Global debounce function |
 
 ### Enums
 
-| Enum | Values | Description |
-|------|--------|-------------|
-| `CancellationCompletionReason` | `cancelled`, `timeout` | Reason for completion |
+| Enum | Values | Mô tả |
+|------|--------|-------|
+| `CancellationCompletionReason` | `cancelled`, `timeout` | Lý do completion |
 
-## 📖 Examples
+## 📖 Examples và Testing
 
-Check out the comprehensive examples in the [`example/`](./example) directory:
-
-- **[Main Example](./example/example.dart)** - Showcases all features
-- **[Throttle/Debounce Example](./example/throttle_debounce_example.dart)** - Detailed rate limiting examples
-
-Run examples:
+### Chạy examples
 
 ```bash
-# Main comprehensive example
+# Example tổng hợp tất cả features
 dart run example/example.dart
 
-# Detailed throttle/debounce examples
+# Example chi tiết về throttle/debounce  
 dart run example/throttle_debounce_example.dart
 ```
 
-## 🧪 Testing
-
-The package includes comprehensive tests covering all functionality:
+### Chạy tests
 
 ```bash
 dart test
 ```
 
-Current test coverage: **148 tests passing** ✅
+**148 tests passing** ✅ với coverage đầy đủ cho tất cả features.
 
-## 🔄 Migration Guide
-
-### From Legacy APIs
-
-The package maintains backward compatibility while introducing enhanced APIs:
+## 🔄 Migration từ APIs cũ
 
 ```dart
-// Old (still works, but deprecated)
+// Cũ (vẫn hoạt động nhưng deprecated)
 try {
   await token.whenCancelledOrTimeoutLegacy(duration);
 } on TimeoutException {
-  // Handle timeout
+  // Xử lý timeout
 }
 
-// New (recommended)
+// Mới (khuyên dùng)
 final reason = await token.whenCancelledOrTimeout(duration);
 switch (reason) {
   case CancellationCompletionReason.cancelled:
-    // Handle cancellation
-  case CancellationCompletionReason.timeout:
-    // Handle timeout
+    // Xử lý cancellation
+  case CancellationCompletionReason.timeout:  
+    // Xử lý timeout
+}
+```
+
+## 💡 Tips và Best Practices
+
+### 1. Dispose Managers
+```dart
+// ✅ Luôn dispose managers khi không dùng nữa
+final manager = ThrottleManager<String>(Duration(seconds: 1));
+// ... sử dụng manager
+manager.dispose();
+```
+
+### 2. Error Handling
+```dart
+// ✅ Handle cả timeout và cancellation
+try {
+  final result = await withTimeout(operation(), Duration(seconds: 5));
+} on TimeoutException {
+  // Xử lý timeout
+} on OperationCanceledException {
+  // Xử lý cancellation
+}
+```
+
+### 3. Parallel Operations
+```dart
+// ✅ Sử dụng parallel cho I/O operations
+final futures = urls.map((url) => () => http.get(Uri.parse(url))).toList();
+final responses = await runLimitedParallel(futures, maxParallel: 5);
+```
+
+### 4. Search Implementation
+```dart
+// ✅ Debounce cho search, throttle cho API calls
+class SearchService {
+  final _debounceManager = DebounceManager<List<String>>(Duration(milliseconds: 300));
+  final _throttleManager = ThrottleManager<List<String>>(Duration(seconds: 1));
+  
+  // Debounce user input
+  Future<List<String>> search(String query) => 
+    _debounceManager.debounce(() => _performSearch(query));
+    
+  // Throttle expensive operations  
+  Future<List<String>> getSuggestions() =>
+    _throttleManager.throttle(() => _fetchSuggestions());
 }
 ```
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+Contributions are welcome! Vui lòng:
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Inspired by .NET's CancellationToken pattern
-- Built with Dart's powerful async/await capabilities
-- Follows Dart/Flutter best practices for package development
+1. Fork repository
+2. Tạo feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add some amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Tạo Pull Request
 
 ## 📞 Support
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/duymainek/async_toolkit/issues)
+- **GitHub Issues**: [Report bugs hoặc request features](https://github.com/duymainek/async_toolkit/issues)
 - **Pub.dev**: [Package page](https://pub.dev/packages/async_toolkit)
 - **Documentation**: [API documentation](https://pub.dev/documentation/async_toolkit/latest/)
+
+## 📄 License
+
+MIT License - xem [LICENSE](LICENSE) file.
 
 ---
 
