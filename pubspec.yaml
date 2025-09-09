@@ -5,12 +5,10 @@ homepage: https://github.com/duymainek/async_toolkit
 repository: https://github.com/duymainek/async_toolkit
 issue_tracker: https://github.com/duymainek/async_toolkit/issues
 documentation: https://pub.dev/documentation/async_toolkit/latest/
+author: Duy Mai
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-
-# No dependencies - pure Dart implementation
-dependencies:
 
 dev_dependencies:
   test: ^1.25.0
@@ -28,14 +26,9 @@ platforms:
 topics:
   - async
   - cancellation
-  - timeout
   - retry
-  - parallel
   - throttle
-  - debounce
-  - utilities
-  - concurrency
-  - rate-limiting
+  - parallel
 
 funding:
   - https://github.com/sponsors/duymainek
