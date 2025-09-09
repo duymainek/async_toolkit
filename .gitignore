@@ -1,0 +1,33 @@
+# Dart/Flutter files
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+
+# Test files
+test/**.mocks.dart
+
+# Build artifacts
+*.exe
+*.deb
+*.dmg
+*.pkg
+*.msi
+*.zip
+*.tar.gz
+
+# Logs
+*.log
