@@ -7,7 +7,7 @@ void main() async {
   // Core Features
   print('📋 CORE FEATURES:');
 
-  // Example 1: Cancellation Tokens với API calls
+  // Example 1: Cancellation Tokens with API calls
   await cancellationExample();
 
   // Example 2: Real-world API example
@@ -19,7 +19,7 @@ void main() async {
   // Example 4: Timeout Control
   await timeoutExample();
 
-  // Example 5: Retry Logic với Cancellation
+  // Example 5: Retry Logic with Cancellation
   await retryExample();
 
   // Example 6: Parallel Execution
@@ -37,28 +37,28 @@ void main() async {
 Future<void> cancellationExample() async {
   print('=== Cancellation Example - API Calls ===');
 
-  // Tạo cancellation token source
+  // Create cancellation token source
   final source = CancellationTokenSource();
   final token = source.token;
 
-  print('🚀 Bắt đầu gọi API...');
+  print('🚀 Starting API call...');
 
   // Simulate API call with progress updates
   final apiCall = _simulateAPICall(token);
 
   // Cancel after 3 seconds (simulate user cancelling)
   Timer(Duration(seconds: 3), () {
-    print('❌ User đã hủy tác vụ!');
+    print('❌ User cancelled the operation!');
     source.cancel();
   });
 
   try {
     final result = await apiCall;
-    print('✅ API call thành công: $result');
+    print('✅ API call successful: $result');
   } on OperationCanceledException {
-    print('⚠️  API call đã bị hủy bởi user');
+    print('⚠️  API call was cancelled by user');
   } catch (e) {
-    print('❌ Lỗi API: $e');
+    print('❌ API error: $e');
   } finally {
     source.dispose();
   }
@@ -68,44 +68,44 @@ Future<void> cancellationExample() async {
 
 /// Simulate a real API call with progress updates
 Future<String> _simulateAPICall(CancellationToken token) async {
-  print('📡 Đang kết nối đến server...');
+  print('📡 Connecting to server...');
   await Future.delayed(Duration(milliseconds: 500));
 
   // Check for cancellation
   token.throwIfCancellationRequested();
 
-  print('🔐 Đang xác thực...');
+  print('🔐 Authenticating...');
   await Future.delayed(Duration(milliseconds: 800));
 
   // Check for cancellation
   token.throwIfCancellationRequested();
 
-  print('📥 Đang tải dữ liệu...');
+  print('📥 Loading data...');
   await Future.delayed(Duration(milliseconds: 1000));
 
   // Check for cancellation
   token.throwIfCancellationRequested();
 
-  print('🔄 Đang xử lý dữ liệu...');
+  print('🔄 Processing data...');
   await Future.delayed(Duration(milliseconds: 700));
 
   // Check for cancellation
   token.throwIfCancellationRequested();
 
-  print('✅ Hoàn thành!');
-  return 'Dữ liệu từ API: {users: 150, orders: 300}';
+  print('✅ Complete!');
+  return 'API data: {users: 150, orders: 300}';
 }
 
 /// Real-world API example with cancellation
 Future<void> realWorldAPIExample() async {
   print('=== Real-world API Example ===');
 
-  // Tạo token source cho toàn bộ quá trình
+  // Create token source for the entire process
   final tokenSource = CancellationTokenSource();
   final token = tokenSource.token;
 
   try {
-    print('🔄 Bắt đầu tải dữ liệu người dùng...');
+    print('🔄 Starting to load user data...');
 
     // Simulate multiple API calls
     final userData = await _fetchUserData(token);
@@ -117,11 +117,11 @@ Future<void> realWorldAPIExample() async {
     final userFriends = await _fetchUserFriends(userData['id'], token);
     print('👥 User friends: ${userFriends.length} friends');
 
-    print('✅ Hoàn thành tải tất cả dữ liệu!');
+    print('✅ Completed loading all data!');
   } on OperationCanceledException {
-    print('⚠️  Tác vụ bị hủy - dữ liệu đã tải một phần');
+    print('⚠️  Operation cancelled - data partially loaded');
   } catch (e) {
-    print('❌ Lỗi: $e');
+    print('❌ Error: $e');
   } finally {
     tokenSource.dispose();
   }
@@ -131,15 +131,15 @@ Future<void> realWorldAPIExample() async {
 
 /// Simulate fetching user data
 Future<Map<String, dynamic>> _fetchUserData(CancellationToken token) async {
-  print('  📡 Đang tải thông tin user...');
+  print('  📡 Loading user information...');
   await Future.delayed(Duration(milliseconds: 1200));
 
   token.throwIfCancellationRequested();
 
   return {
     'id': 123,
-    'name': 'Nguyễn Văn A',
-    'email': 'nguyenvana@example.com',
+    'name': 'John Doe',
+    'email': 'john.doe@example.com',
     'avatar': 'https://example.com/avatar.jpg'
   };
 }
@@ -147,30 +147,30 @@ Future<Map<String, dynamic>> _fetchUserData(CancellationToken token) async {
 /// Simulate fetching user posts
 Future<List<Map<String, dynamic>>> _fetchUserPosts(
     int userId, CancellationToken token) async {
-  print('  📝 Đang tải bài viết của user $userId...');
+  print('  📝 Loading posts for user $userId...');
   await Future.delayed(Duration(milliseconds: 800));
 
   token.throwIfCancellationRequested();
 
   return [
-    {'id': 1, 'title': 'Bài viết 1', 'content': 'Nội dung bài viết 1'},
-    {'id': 2, 'title': 'Bài viết 2', 'content': 'Nội dung bài viết 2'},
-    {'id': 3, 'title': 'Bài viết 3', 'content': 'Nội dung bài viết 3'},
+    {'id': 1, 'title': 'Post 1', 'content': 'Content of post 1'},
+    {'id': 2, 'title': 'Post 2', 'content': 'Content of post 2'},
+    {'id': 3, 'title': 'Post 3', 'content': 'Content of post 3'},
   ];
 }
 
 /// Simulate fetching user friends
 Future<List<Map<String, dynamic>>> _fetchUserFriends(
     int userId, CancellationToken token) async {
-  print('  👥 Đang tải danh sách bạn bè của user $userId...');
+  print('  👥 Loading friends list for user $userId...');
   await Future.delayed(Duration(milliseconds: 600));
 
   token.throwIfCancellationRequested();
 
   return [
-    {'id': 456, 'name': 'Trần Thị B', 'status': 'online'},
-    {'id': 789, 'name': 'Lê Văn C', 'status': 'offline'},
-    {'id': 101, 'name': 'Phạm Thị D', 'status': 'online'},
+    {'id': 456, 'name': 'Jane Smith', 'status': 'online'},
+    {'id': 789, 'name': 'Bob Johnson', 'status': 'offline'},
+    {'id': 101, 'name': 'Alice Brown', 'status': 'online'},
   ];
 }
 
